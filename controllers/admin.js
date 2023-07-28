@@ -5,6 +5,7 @@ exports.getAddProduct = (req, res, next) => {
     pageTitle: 'Add Product',
     path: '/admin/add-product',
     editing: false,
+    isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
   });
 };
 
@@ -40,6 +41,7 @@ exports.getEditProduct = (req, res, next) => {
     return res.redirect('/');
   }
   const prodId = req.params.productId;
+
   Product.findById(prodId)
     .then(product => {
       if (!product) {
@@ -50,6 +52,7 @@ exports.getEditProduct = (req, res, next) => {
         path: '/admin/edit-product',
         editing: editMode,
         product: product,
+        isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
       });
     })
     .catch(err => console.log(err));
@@ -84,6 +87,7 @@ exports.getProducts = (req, res, next) => {
         prods: products,
         pageTitle: 'Admin Products',
         path: '/admin/products',
+        isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
       });
     })
     .catch(err => console.log(err));
@@ -91,6 +95,7 @@ exports.getProducts = (req, res, next) => {
 
 exports.postDeleteProduct = (req, res, next) => {
   const prodId = req.body.productId;
+  console.log(prodId);
 
   Product.findByIdAndRemove(prodId)
     .then(() => {
