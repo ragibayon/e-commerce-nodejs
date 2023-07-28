@@ -65,24 +65,28 @@ const options = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 };
-mongoose
-  .connect(connectionString, options)
-  .then(() => {
-    console.log('Connected to MongoDB Atlas');
 
-    User.findOne().then(user => {
-      if (!user) {
-        const user = new User({
-          name: 'ragib',
-          email: 'ragib@email.com',
-          items: [],
-        });
-        user.save();
-      }
+const connectDb = async () => {
+  await mongoose.connect(connectionString, options);
+  console.log('Connected to MongoDB Atlas');
+};
+
+const createUser = async () => {
+  const user = await User.findOne();
+  if (!user) {
+    const user = new User({
+      name: 'ragib',
+      email: 'ragib@email.com',
+      items: [],
     });
+    user.save();
+  }
+};
 
-    app.listen(3000, () => console.log('app listening on port 3000'));
-  })
-  .catch(err => {
-    console.error('Error connecting to MongoDB Atlas:', err.message);
-  });
+const startServer = async () => {
+  await connectDb();
+  await createUser();
+  app.listen(3000, () => console.log('app listening on port 3000'));
+};
+
+startServer();
