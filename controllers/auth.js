@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
+const {sendSignupSuccessful} = require('../util/mailTransporter');
 
 exports.getLogin = (req, res, next) => {
   let message = req.flash('error');
@@ -8,7 +9,6 @@ exports.getLogin = (req, res, next) => {
   } else {
     message = null;
   }
-  console.log(message);
 
   res.render('auth/login', {
     path: '/login',
@@ -24,7 +24,6 @@ exports.getSignup = async (req, res, next) => {
   } else {
     message = null;
   }
-  console.log(message);
   res.render('auth/signup', {
     path: '/signup',
     pageTitle: 'Signup',
@@ -82,6 +81,7 @@ exports.postSignup = async (req, res, next) => {
     });
 
     await newUser.save();
+    sendSignupSuccessful(email);
     res.redirect('/login');
   } catch (err) {
     console.log(err);

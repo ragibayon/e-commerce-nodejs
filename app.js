@@ -1,6 +1,7 @@
 const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
+const dotenv = require('dotenv').config();
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
@@ -18,10 +19,9 @@ const User = require('./models/user');
 // controllers
 const errorController = require('./controllers/error');
 
-const MONGODB_URI =
-  'mongodb+srv://admin:adminpw@node-complete-cluster.7fvy3qw.mongodb.net/shop';
-
 const app = express();
+
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const store = new MongoDBStore({
   uri: MONGODB_URI,
