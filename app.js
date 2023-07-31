@@ -4,6 +4,8 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
+const csurf = require('csurf');
+const flash = require('connect-flash');
 
 // routers
 const adminRoutes = require('./routes/admin');
@@ -26,6 +28,8 @@ const store = new MongoDBStore({
   collection: 'session',
 });
 
+const csrfProtection = csurf();
+
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 
@@ -40,6 +44,18 @@ app.use(
     store: store,
   })
 );
+
+app.use(csrfProtection);
+app.use(flash());
+
+app.use((req, res, next) => {
+  // local variables to the response
+  res.locals.isAuthenticated = req.session.user
+    ? req.session.user.isLoggedIn
+    : false;
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
 
 app.use(async (req, res, next) => {
   try {
@@ -71,21 +87,8 @@ const connectDb = async () => {
   console.log('Connected to MongoDB Atlas');
 };
 
-const createUser = async () => {
-  const user = await User.findOne();
-  if (!user) {
-    const user = new User({
-      name: 'ragib',
-      email: 'ragib@email.com',
-      items: [],
-    });
-    user.save();
-  }
-};
-
 const startServer = async () => {
   await connectDb();
-  await createUser();
   app.listen(3000, () => console.log('app listening on port 3000'));
 };
 

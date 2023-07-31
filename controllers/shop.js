@@ -10,7 +10,6 @@ exports.getProducts = async (req, res, next) => {
       prods: products,
       pageTitle: 'All Products',
       path: '/products',
-      isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
     });
   } catch (err) {
     console.log(err);
@@ -26,7 +25,6 @@ exports.getProduct = async (req, res, next) => {
       product: product,
       pageTitle: product.title,
       path: '/products',
-      isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
     });
   } catch (err) {
     console.log(err);
@@ -41,7 +39,6 @@ exports.getIndex = async (req, res, next) => {
       prods: products,
       pageTitle: 'Shop',
       path: '/',
-      isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
     });
   } catch (err) {
     console.log(err);
@@ -56,7 +53,6 @@ exports.getCart = async (req, res, next) => {
       path: '/cart',
       pageTitle: 'Your Cart',
       products: products,
-      isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
     });
   } catch (err) {
     console.log(err);
@@ -77,7 +73,6 @@ exports.postCart = async (req, res, next) => {
 exports.postCartDeleteProduct = async (req, res, next) => {
   try {
     const prodId = req.body.productId;
-
     await req.user.removeFromCart(prodId);
     res.redirect('/cart');
   } catch (err) {
@@ -87,7 +82,8 @@ exports.postCartDeleteProduct = async (req, res, next) => {
 
 exports.postOrder = async (req, res, next) => {
   try {
-    const populatedUser = await req.user.populate('cart.items.productId');
+    const user = await User.findById(req.session.user._id);
+    const populatedUser = await user.populate('cart.items.productId');
 
     const products = populatedUser.cart.items.map(i => {
       return {quantity: i.quantity, product: {...i.productId._doc}};
@@ -95,12 +91,13 @@ exports.postOrder = async (req, res, next) => {
 
     const order = new Order({
       user: {
-        name: req.user.name,
-        userId: req.user._id,
+        userId: req.session.user._id,
+        email: req.session.user.email,
       },
       products: products,
     });
-    order.save();
+
+    await order.save();
     await req.user.clearCart();
     res.redirect('/orders');
   } catch (err) {
@@ -115,7 +112,6 @@ exports.getOrders = async (req, res, next) => {
       path: '/orders',
       pageTitle: 'Your Orders',
       orders: orders,
-      isAuthenticated: req.session.user ? req.session.user.isLoggedIn : false,
     });
   } catch (err) {
     console.log(err);
