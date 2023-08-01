@@ -1,11 +1,68 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const crypto = require('crypto');
+const {validationResult} = require('express-validator');
+
 const {
   sendSignupSuccessful,
   sendPasswordResetLink,
   sendPasswordResetSuccessful,
 } = require('../util/mailTransporter');
+
+exports.getSignup = async (req, res, next) => {
+  let message = req.flash('error');
+  if (message.length > 0) {
+    message = message[0];
+  } else {
+    message = null;
+  }
+  res.render('auth/signup', {
+    path: '/signup',
+    pageTitle: 'Signup',
+    errorMessage: message,
+    oldInput: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
+    validationErrors: [],
+  });
+};
+exports.postSignup = async (req, res, next) => {
+  try {
+    const email = req.body.email;
+    const password = req.body.password;
+    const confirmPassword = req.body.confirmPassword;
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(422).render('auth/signup', {
+        path: '/signup',
+        pageTitle: 'Signup',
+        errorMessage: errors.array()[0].msg, // the error msg generated from the check
+        oldInput: {
+          email: email,
+          password: password,
+          confirmPassword: confirmPassword,
+        },
+        validationErrors: errors.array(),
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+    const newUser = new User({
+      email: email,
+      password: hashedPassword,
+      cart: {items: []},
+    });
+
+    await newUser.save();
+    sendSignupSuccessful(email);
+    res.redirect('/login');
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 exports.getLogin = (req, res, next) => {
   let message = req.flash('error');
@@ -19,27 +76,32 @@ exports.getLogin = (req, res, next) => {
     path: '/login',
     pageTitle: 'Login',
     errorMessage: message,
+    oldInput: {
+      email: '',
+      password: '',
+    },
+    validationErrors: [],
   });
 };
-
-exports.getSignup = async (req, res, next) => {
-  let message = req.flash('error');
-  if (message.length > 0) {
-    message = message[0];
-  } else {
-    message = null;
-  }
-  res.render('auth/signup', {
-    path: '/signup',
-    pageTitle: 'Signup',
-    errorMessage: message,
-  });
-};
-
 exports.postLogin = async (req, res, next) => {
   try {
     const email = req.body.email;
     const password = req.body.password;
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(422).render('auth/login', {
+        path: '/login',
+        pageTitle: 'Login',
+        errorMessage: errors.array()[0].msg, // the error msg generated from the check
+        oldInput: {
+          email: email,
+          password: password,
+        },
+        validationErrors: errors.array(),
+      });
+    }
+
     const userData = await User.findOne({email: email}).select('-__v');
     if (userData) {
       const passwordMatched = await bcrypt.compare(password, userData.password);
@@ -50,44 +112,30 @@ exports.postLogin = async (req, res, next) => {
         return res.redirect('/');
       } else {
         // username matched but password did not match
-        req.flash('error', 'password is invalid.');
-        return res.redirect('/login');
+        return res.status(422).render('auth/login', {
+          path: '/login',
+          pageTitle: 'Login',
+          errorMessage: 'User Authentication failed', // the error msg generated from the check
+          oldInput: {
+            email: email,
+            password: password,
+          },
+          validationErrors: [{path: 'email'}, {path: 'password'}],
+        });
       }
     } else {
       // user not found
-      req.flash('error', "couldn't find user in system");
-      res.redirect('/login');
+      return res.status(422).render('auth/login', {
+        path: '/login',
+        pageTitle: 'Login',
+        errorMessage: 'User Authentication failed', // the error msg generated from the check
+        oldInput: {
+          email: email,
+          password: password,
+        },
+        validationErrors: [{path: 'email'}, {path: 'password'}],
+      });
     }
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-exports.postSignup = async (req, res, next) => {
-  try {
-    const email = req.body.email;
-    const password = req.body.password;
-    const confirmPassword = req.body.confirmPassword;
-
-    // do validation
-
-    const user = await User.findOne({email: email}); // user already exist
-    if (user) {
-      req.flash('error', 'user already exists');
-      return res.redirect('/signup');
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 12);
-
-    const newUser = new User({
-      email: email,
-      password: hashedPassword,
-      cart: {items: []},
-    });
-
-    await newUser.save();
-    sendSignupSuccessful(email);
-    res.redirect('/login');
   } catch (err) {
     console.log(err);
   }
@@ -118,7 +166,6 @@ exports.getReset = (req, res, next) => {
 
 exports.postReset = async (req, res, next) => {
   try {
-    console.log('this was called');
     // check if the provided email exists
     // if not redirect to '/login with error
     // if exists save the token to db and send email
@@ -146,7 +193,6 @@ exports.postReset = async (req, res, next) => {
 
 exports.getNewPassword = async (req, res, next) => {
   try {
-    console.log('get new pass is called');
     const token = req.params.token;
     const user = await User.findOne({
       resetToken: token,
