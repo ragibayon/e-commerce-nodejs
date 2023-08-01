@@ -12,20 +12,13 @@
                 <%= errorMessage %>
             </div>
         <% } %>
-        <form class="login-form" action="/login %>" method="POST">
+        <form class="login-form" action="/reset %>" method="POST">
             <input type="hidden" value="<%= csrfToken %>" name="_csrf">
             <div class="form-control">
                 <label for="email">E-Mail</label>
                 <input type="text" name="email" id="email">
             </div>
-            <div class="form-control">
-                <label for="password">Password</label>
-                <input type="password" name="password" id="password">
-            </div>
-            <button class="btn" type="submit">login</button>
+            <button class="btn" type="submit">Reset Password</button>
         </form>
-        <div class="centered">
-        <a href="/reset">Reset Password</a>
-    </div>
     </main>
 <%- include('../includes/end.ejs') %>

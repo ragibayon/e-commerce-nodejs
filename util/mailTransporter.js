@@ -19,3 +19,22 @@ exports.sendSignupSuccessful = async email => {
     html: '<h1>You have successfully Signed up!</h1>',
   });
 };
+
+exports.sendPasswordResetLink = async (email, token) => {
+  await transporter.sendMail({
+    to: email,
+    from: 'shop@node.com',
+    subject: 'Password Reset',
+    html: `<p>You requested password reset </p>
+    <p> Click this <a href=http://localhost:3000/reset/${token}> link </a> to set a new password`,
+  });
+};
+
+exports.sendPasswordResetSuccessful = async email => {
+  await transporter.sendMail({
+    to: email,
+    from: 'shop@node.com',
+    subject: 'Password Reset Successful',
+    html: `<p>Your password reset has been successful</p>`,
+  });
+};

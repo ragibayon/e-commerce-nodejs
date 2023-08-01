@@ -68,13 +68,18 @@ exports.postEditProduct = async (req, res, next) => {
 
     const product = await Product.findById(prodId);
 
+    // user authentication
+    if (product.userId.toString() !== req.session.user._id.toString()) {
+      return res.redirect('/');
+    }
+
     product.title = updatedTitle;
     product.price = updatedPrice;
     product.imageUrl = updatedImageUrl;
     product.description = updatedDesc;
-    const result = await product.save();
-
+    await product.save();
     console.log('UPDATED PRODUCT!');
+
     res.redirect('/admin/products');
   } catch (err) {
     console.log(err);
@@ -98,7 +103,7 @@ exports.getProducts = async (req, res, next) => {
 exports.postDeleteProduct = async (req, res, next) => {
   try {
     const prodId = req.body.productId;
-    await Product.findByIdAndRemove(prodId);
+    await Product.deleteOne({_id: prodId, userId: req.session.user._id});
     console.log('DESTROYED PRODUCT');
     res.redirect('/admin/products');
   } catch (err) {
