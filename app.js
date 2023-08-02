@@ -18,6 +18,7 @@ const User = require('./models/user');
 
 // controllers
 const errorController = require('./controllers/error');
+const throwError = require('./util/throwError');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// i don't understand the logic here
 app.use(async (req, res, next) => {
   try {
     if (!req.session.user) {
@@ -66,7 +68,8 @@ app.use(async (req, res, next) => {
     req.user = user;
     next();
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 });
 
@@ -74,7 +77,15 @@ app.use('/admin', adminRoutes);
 app.use(shopRoutes);
 app.use(authRoutes);
 
+app.get('/500', errorController.get500);
 app.use(errorController.get404);
+
+app.use((error, req, res, next) => {
+  res.status(error.httpStatusCode || 500).render('500', {
+    pageTitle: 'Error',
+    path: '/500',
+  });
+});
 
 const connectionString = MONGODB_URI;
 const options = {

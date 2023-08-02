@@ -1,6 +1,7 @@
 const dotenv = require('dotenv').config();
 const nodemailer = require('nodemailer');
 const mailgunTransport = require('nodemailer-mailgun-transport');
+const throwError = require('./throwError');
 
 const auth = {
   auth: {
@@ -12,29 +13,44 @@ const auth = {
 const transporter = nodemailer.createTransport(mailgunTransport(auth));
 
 exports.sendSignupSuccessful = async email => {
-  await transporter.sendMail({
-    to: email,
-    from: 'shop@node.com',
-    subject: 'Signup Successful',
-    html: '<h1>You have successfully Signed up!</h1>',
-  });
+  try {
+    await transporter.sendMail({
+      to: email,
+      from: 'shop@node.com',
+      subject: 'Signup Successful',
+      html: '<h1>You have successfully Signed up!</h1>',
+    });
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
+  }
 };
 
 exports.sendPasswordResetLink = async (email, token) => {
-  await transporter.sendMail({
-    to: email,
-    from: 'shop@node.com',
-    subject: 'Password Reset',
-    html: `<p>You requested password reset </p>
+  try {
+    await transporter.sendMail({
+      to: email,
+      from: 'shop@node.com',
+      subject: 'Password Reset',
+      html: `<p>You requested password reset </p>
     <p> Click this <a href=http://localhost:3000/reset/${token}> link </a> to set a new password`,
-  });
+    });
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
+  }
 };
 
 exports.sendPasswordResetSuccessful = async email => {
-  await transporter.sendMail({
-    to: email,
-    from: 'shop@node.com',
-    subject: 'Password Reset Successful',
-    html: `<p>Your password reset has been successful</p>`,
-  });
+  try {
+    await transporter.sendMail({
+      to: email,
+      from: 'shop@node.com',
+      subject: 'Password Reset Successful',
+      html: `<p>Your password reset has been successful</p>`,
+    });
+  } catch (err) {
+    const error = throwError(err);
+    next(error);
+  }
 };

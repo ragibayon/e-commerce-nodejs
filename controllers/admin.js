@@ -1,56 +1,58 @@
 const {validationResult} = require('express-validator');
 const Product = require('../models/product');
+const throwError = require('../util/throwError.js');
 
 exports.getAddProduct = (req, res, next) => {
-  res.render('admin/edit-product', {
-    pageTitle: 'Add Product',
-    path: '/admin/add-product',
-    editing: false,
-    errorMessage: null,
-    hasError: false,
-    validationErrors: [],
-  });
+  try {
+    res.render('admin/edit-product', {
+      pageTitle: 'Add Product',
+      path: '/admin/add-product',
+      editing: false,
+      errorMessage: null,
+      hasError: false,
+      validationErrors: [],
+    });
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
+  }
 };
 
 exports.postAddProduct = async (req, res, next) => {
   try {
-    const title = req.body.title;
-    const price = req.body.price;
-    const imageUrl = req.body.imageUrl;
-    const description = req.body.description;
+    const {title, price, imageUrl, description} = req.body;
 
-    // if there are errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    // validation error
+    const valErrors = validationResult(req);
+    if (!valErrors.isEmpty()) {
       return res.status(422).render('admin/edit-product', {
         pageTitle: 'Add Product',
         path: '/admin/edit-product',
         editing: false,
         hasError: true,
         product: {
-          title: title,
-          price: price,
-          imageUrl: imageUrl,
-          description: description,
+          title,
+          price,
+          imageUrl,
+          description,
         },
-        errorMessage: errors.array()[0].msg,
-        validationErrors: errors.array(),
+        errorMessage: valErrors.array()[0].msg,
+        validationErrors: valErrors.array(),
       });
     }
 
     const product = new Product({
-      title: title,
-      imageUrl: imageUrl,
-      price: price,
-      description: description,
+      title,
+      imageUrl,
+      price,
+      description,
       userId: req.user._id,
     });
-
-    const result = await product.save();
-    console.log('Created Product');
-    res.redirect('/admin/products');
+    await product.save();
+    res.status(201).redirect('/admin/products');
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -63,7 +65,7 @@ exports.getEditProduct = async (req, res, next) => {
     const prodId = req.params.productId;
     const product = await Product.findById(prodId);
     if (!product) {
-      return res.redirect('/');
+      throw new Error('product not found');
     }
     res.render('admin/edit-product', {
       pageTitle: 'Edit Product',
@@ -75,20 +77,23 @@ exports.getEditProduct = async (req, res, next) => {
       validationErrors: [],
     });
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
 exports.postEditProduct = async (req, res, next) => {
   try {
-    const prodId = req.body.productId;
-    const updatedTitle = req.body.title;
-    const updatedPrice = req.body.price;
-    const updatedImageUrl = req.body.imageUrl;
-    const updatedDesc = req.body.description;
+    const {
+      productId,
+      title: updatedTitle,
+      price: updatedPrice,
+      imageUrl: updatedImageUrl,
+      description: updatedDesc,
+    } = req.body;
 
     const errors = validationResult(req);
-    // if error occurs
+    // validation error
     if (!errors.isEmpty()) {
       return res.status(422).render('admin/edit-product', {
         pageTitle: 'Edit Product',
@@ -100,17 +105,17 @@ exports.postEditProduct = async (req, res, next) => {
           price: updatedPrice,
           imageUrl: updatedImageUrl,
           description: updatedDesc,
-          _id: prodId,
+          _id: productId,
         },
         validationErrors: errors.array(),
         errorMessage: errors.array()[0].msg,
       });
     }
-    const product = await Product.findById(prodId);
+    const product = await Product.findById(productId);
 
     // user authentication
     if (product.userId.toString() !== req.session.user._id.toString()) {
-      return res.redirect('/');
+      throw new Error('Authorization Failed');
     }
 
     product.title = updatedTitle;
@@ -121,21 +126,22 @@ exports.postEditProduct = async (req, res, next) => {
 
     res.redirect('/admin/products');
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
 exports.getProducts = async (req, res, next) => {
   try {
     const products = await Product.find({userId: req.session.user._id});
-
     res.render('admin/products', {
       prods: products,
       pageTitle: 'Admin Products',
       path: '/admin/products',
     });
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -146,6 +152,7 @@ exports.postDeleteProduct = async (req, res, next) => {
     console.log('DESTROYED PRODUCT');
     res.redirect('/admin/products');
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };

@@ -1,7 +1,8 @@
 const bcrypt = require('bcrypt');
-const User = require('../models/user');
 const crypto = require('crypto');
 const {validationResult} = require('express-validator');
+
+const User = require('../models/user');
 
 const {
   sendSignupSuccessful,
@@ -28,6 +29,7 @@ exports.getSignup = async (req, res, next) => {
     validationErrors: [],
   });
 };
+
 exports.postSignup = async (req, res, next) => {
   try {
     const email = req.body.email;
@@ -50,6 +52,7 @@ exports.postSignup = async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+
     const newUser = new User({
       email: email,
       password: hashedPassword,
@@ -57,10 +60,13 @@ exports.postSignup = async (req, res, next) => {
     });
 
     await newUser.save();
+
     sendSignupSuccessful(email);
+
     res.redirect('/login');
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -137,7 +143,8 @@ exports.postLogin = async (req, res, next) => {
       });
     }
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -146,7 +153,8 @@ exports.postLogout = async (req, res, next) => {
     req.session.destroy();
     res.redirect('/');
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -186,8 +194,8 @@ exports.postReset = async (req, res, next) => {
     res.redirect('/');
     await sendPasswordResetLink(email, token);
   } catch (err) {
-    console.log(err);
-    res.redirect('/reset');
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
@@ -215,36 +223,42 @@ exports.getNewPassword = async (req, res, next) => {
       });
     }
   } catch (err) {
-    console.log(err);
+    const error = throwError(err, 500);
+    next(error);
   }
 };
 
 exports.postNewPassword = async (req, res, next) => {
-  const newPassword = req.body.password;
-  const userId = req.body.userId;
-  const passwordToken = req.body.passwordToken;
+  try {
+    const newPassword = req.body.password;
+    const userId = req.body.userId;
+    const passwordToken = req.body.passwordToken;
 
-  // get user
-  // change password
-  // reset other fields
-  // send email
-  // redirect to login
+    // get user
+    // change password
+    // reset other fields
+    // send email
+    // redirect to login
 
-  const user = await User.findOne({
-    resetToken: passwordToken,
-    resetTokenExpiration: {$gt: Date.now()},
-    _id: userId,
-  });
+    const user = await User.findOne({
+      resetToken: passwordToken,
+      resetTokenExpiration: {$gt: Date.now()},
+      _id: userId,
+    });
 
-  if (user) {
-    user.password = await bcrypt.hash(newPassword, 12);
-    user.resetToken = undefined;
-    user.resetTokenExpiration = undefined;
-    await user.save();
-    res.redirect('/');
-    await sendPasswordResetSuccessful(user.email);
-  } else {
-    req.flash('error', 'something went wrong');
-    res.redirect('/login');
+    if (user) {
+      user.password = await bcrypt.hash(newPassword, 12);
+      user.resetToken = undefined;
+      user.resetTokenExpiration = undefined;
+      await user.save();
+      res.redirect('/');
+      await sendPasswordResetSuccessful(user.email);
+    } else {
+      req.flash('error', 'something went wrong');
+      res.redirect('/login');
+    }
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
   }
 };
