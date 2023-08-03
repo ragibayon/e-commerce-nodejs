@@ -1,7 +1,6 @@
 const dotenv = require('dotenv').config();
 const nodemailer = require('nodemailer');
 const mailgunTransport = require('nodemailer-mailgun-transport');
-const throwError = require('./throwError');
 
 const auth = {
   auth: {
@@ -21,8 +20,7 @@ exports.sendSignupSuccessful = async email => {
       html: '<h1>You have successfully Signed up!</h1>',
     });
   } catch (err) {
-    const error = throwError(err, 500);
-    next(error);
+    console.log(err);
   }
 };
 
@@ -36,8 +34,7 @@ exports.sendPasswordResetLink = async (email, token) => {
     <p> Click this <a href=http://localhost:3000/reset/${token}> link </a> to set a new password`,
     });
   } catch (err) {
-    const error = throwError(err, 500);
-    next(error);
+    console.log(err);
   }
 };
 
@@ -50,7 +47,6 @@ exports.sendPasswordResetSuccessful = async email => {
       html: `<p>Your password reset has been successful</p>`,
     });
   } catch (err) {
-    const error = throwError(err);
-    next(error);
+    console.log(err);
   }
 };

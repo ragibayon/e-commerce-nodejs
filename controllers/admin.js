@@ -1,6 +1,7 @@
 const {validationResult} = require('express-validator');
 const Product = require('../models/product');
 const throwError = require('../util/throwError.js');
+const {deleteFile} = require('../util/file');
 
 exports.getAddProduct = (req, res, next) => {
   try {
@@ -20,7 +21,23 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = async (req, res, next) => {
   try {
-    const {title, price, imageUrl, description} = req.body;
+    const {title, price, description} = req.body;
+    const image = req.file;
+    if (!image) {
+      return res.status(422).render('admin/edit-product', {
+        pageTitle: 'Add Product',
+        path: '/admin/edit-product',
+        editing: false,
+        hasError: true,
+        product: {
+          title,
+          price,
+          description,
+        },
+        errorMessage: 'attached file is not an image',
+        validationErrors: [],
+      });
+    }
 
     // validation error
     const valErrors = validationResult(req);
@@ -33,14 +50,13 @@ exports.postAddProduct = async (req, res, next) => {
         product: {
           title,
           price,
-          imageUrl,
           description,
         },
         errorMessage: valErrors.array()[0].msg,
         validationErrors: valErrors.array(),
       });
     }
-
+    const imageUrl = '/' + image.path;
     const product = new Product({
       title,
       imageUrl,
@@ -48,6 +64,7 @@ exports.postAddProduct = async (req, res, next) => {
       description,
       userId: req.user._id,
     });
+
     await product.save();
     res.status(201).redirect('/admin/products');
   } catch (err) {
@@ -62,11 +79,13 @@ exports.getEditProduct = async (req, res, next) => {
     if (!editMode) {
       return res.redirect('/');
     }
+
     const prodId = req.params.productId;
     const product = await Product.findById(prodId);
     if (!product) {
       throw new Error('product not found');
     }
+
     res.render('admin/edit-product', {
       pageTitle: 'Edit Product',
       path: '/admin/edit-product',
@@ -88,9 +107,9 @@ exports.postEditProduct = async (req, res, next) => {
       productId,
       title: updatedTitle,
       price: updatedPrice,
-      imageUrl: updatedImageUrl,
       description: updatedDesc,
     } = req.body;
+    const image = req.file;
 
     const errors = validationResult(req);
     // validation error
@@ -103,7 +122,6 @@ exports.postEditProduct = async (req, res, next) => {
         product: {
           title: updatedTitle,
           price: updatedPrice,
-          imageUrl: updatedImageUrl,
           description: updatedDesc,
           _id: productId,
         },
@@ -120,8 +138,15 @@ exports.postEditProduct = async (req, res, next) => {
 
     product.title = updatedTitle;
     product.price = updatedPrice;
-    product.imageUrl = updatedImageUrl;
     product.description = updatedDesc;
+
+    if (image) {
+      const imagePath = product.imageUrl.substring(1);
+      console.log(imagePath);
+      await deleteFile(imagePath);
+      product.imageUrl = '/' + image.path;
+    }
+
     await product.save();
 
     res.redirect('/admin/products');
@@ -148,7 +173,17 @@ exports.getProducts = async (req, res, next) => {
 exports.postDeleteProduct = async (req, res, next) => {
   try {
     const prodId = req.body.productId;
-    await Product.deleteOne({_id: prodId, userId: req.session.user._id});
+    const product = await Product.findById(prodId);
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    const imagePath = product.imageUrl.substring(1);
+    console.log(imagePath);
+    await deleteFile(imagePath);
+
+    // await Product.deleteOne({_id: prodId, userId: req.session.user._id});
     console.log('DESTROYED PRODUCT');
     res.redirect('/admin/products');
   } catch (err) {

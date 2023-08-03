@@ -1,6 +1,13 @@
+const fs = require('fs');
+const util = require('util');
+const path = require('path');
+const PDFDocument = require('pdfkit');
+
 const Product = require('../models/product');
 const Order = require('../models/orders');
 const User = require('../models/user');
+const throwError = require('../util/throwError');
+const {generateInvoice} = require('../util/createInvoice');
 
 exports.getProducts = async (req, res, next) => {
   try {
@@ -120,6 +127,34 @@ exports.getOrders = async (req, res, next) => {
       pageTitle: 'Your Orders',
       orders: orders,
     });
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
+  }
+};
+
+exports.getInvoice = async (req, res, next) => {
+  try {
+    const orderId = req.params.orderId;
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      throw new Error('Order Id not found');
+    }
+
+    if (order.user.userId.toString() !== req.session.user._id.toString()) {
+      throw new Error('unauthorized');
+    }
+
+    const invoicePath = await generateInvoice(order);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename=${path.basename(invoicePath)}`
+    );
+    const readStream = fs.createReadStream(invoicePath);
+    readStream.pipe(res);
   } catch (err) {
     const error = throwError(err, 500);
     next(error);

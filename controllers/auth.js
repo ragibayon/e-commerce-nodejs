@@ -1,5 +1,6 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const throwError = require('../util/throwError');
 const {validationResult} = require('express-validator');
 
 const User = require('../models/user');
@@ -77,7 +78,6 @@ exports.getLogin = (req, res, next) => {
   } else {
     message = null;
   }
-
   res.render('auth/login', {
     path: '/login',
     pageTitle: 'Login',
@@ -93,8 +93,8 @@ exports.postLogin = async (req, res, next) => {
   try {
     const email = req.body.email;
     const password = req.body.password;
-    const errors = validationResult(req);
 
+    const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(422).render('auth/login', {
         path: '/login',
@@ -109,6 +109,7 @@ exports.postLogin = async (req, res, next) => {
     }
 
     const userData = await User.findOne({email: email}).select('-__v');
+
     if (userData) {
       const passwordMatched = await bcrypt.compare(password, userData.password);
       if (passwordMatched) {

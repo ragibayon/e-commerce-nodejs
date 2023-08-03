@@ -7,7 +7,7 @@ const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
 const csurf = require('csurf');
 const flash = require('connect-flash');
-
+const multer = require('multer');
 // routers
 const adminRoutes = require('./routes/admin');
 const shopRoutes = require('./routes/shop');
@@ -24,6 +24,7 @@ const app = express();
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
+// store for session
 const store = new MongoDBStore({
   uri: MONGODB_URI,
   collection: 'session',
@@ -31,11 +32,35 @@ const store = new MongoDBStore({
 
 const csrfProtection = csurf();
 
+// file storage to store multer files
+const fileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'images');
+  },
+  filename: (req, file, cb) => {
+    cb(null, new Date().toISOString() + '-' + file.originalname);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  if (
+    file.mimetype === 'image/png' ||
+    file.mimetype === 'image/jpg' ||
+    file.mimetype === 'image/jpeg'
+  ) {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+
 app.set('view engine', 'ejs');
 app.set('views', 'views');
 
 app.use(bodyParser.urlencoded({extended: false}));
+app.use(multer({storage: fileStorage, fileFilter}).single('image'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use(
   session({
@@ -49,6 +74,7 @@ app.use(
 app.use(csrfProtection);
 app.use(flash());
 
+// for each request send isAuthenticated and csrfToken to the view
 app.use((req, res, next) => {
   // local variables to the response
   res.locals.isAuthenticated = req.session.user
@@ -58,7 +84,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// i don't understand the logic here
+// store logged in user mongoose document to req
 app.use(async (req, res, next) => {
   try {
     if (!req.session.user) {
