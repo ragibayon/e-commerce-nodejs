@@ -1,6 +1,8 @@
 const fs = require('fs');
 const util = require('util');
 const path = require('path');
+
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const PDFDocument = require('pdfkit');
 const Product = require('../models/product');
 const Order = require('../models/orders');
@@ -82,6 +84,7 @@ exports.getIndex = async (req, res, next) => {
 
 exports.getCart = async (req, res, next) => {
   try {
+    // when an item is deleted but it was in a cart, there is a bug/ error
     const populatedUser = await req.user.populate('cart.items.productId');
     const products = populatedUser.cart.items;
     res.render('shop/cart', {
@@ -112,6 +115,32 @@ exports.postCartDeleteProduct = async (req, res, next) => {
     const prodId = req.body.productId;
     await req.user.removeFromCart(prodId);
     res.redirect('/cart');
+  } catch (err) {
+    const error = throwError(err, 500);
+    next(error);
+  }
+};
+
+exports.getCheckoutSuccess = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.session.user._id);
+    const populatedUser = await user.populate('cart.items.productId');
+
+    const products = populatedUser.cart.items.map(i => {
+      return {quantity: i.quantity, product: {...i.productId._doc}};
+    });
+
+    const order = new Order({
+      user: {
+        userId: req.session.user._id,
+        email: req.session.user.email,
+      },
+      products: products,
+    });
+
+    await order.save();
+    await req.user.clearCart();
+    res.redirect('/orders');
   } catch (err) {
     const error = throwError(err, 500);
     next(error);
@@ -183,5 +212,39 @@ exports.getInvoice = async (req, res, next) => {
   } catch (err) {
     const error = throwError(err, 500);
     next(error);
+  }
+};
+
+exports.getCheckout = async (req, res, next) => {
+  try {
+    const populatedUser = await req.user.populate('cart.items.productId');
+
+    const products = populatedUser.cart.items;
+    let total = 0;
+    const lineItems = products.map(p => {
+      total += p.quantity * p.productId.price;
+      return {
+        price: p.productId.price * 100, // cents
+        quantity: p.quantity,
+      };
+    });
+
+    // errors
+    // const session = await stripe.checkout.sessions.create({
+    //   payment_method_types: ['card'],
+    //   line_items: lineItems,
+    //   success_url: `${req.protocol}://${req.get('host')}/checkout/success`, // http://localhost:3000/checkout/success
+    //   cancel_url: `${req.protocol}://${req.get('host')}/checkout/cancel`,
+    // });
+
+    res.render('shop/checkout', {
+      path: '/checkout',
+      pageTitle: 'Checkout',
+      products: products,
+      total: total,
+      sessionId: session.id,
+    });
+  } catch (err) {
+    console.log(err);
   }
 };
